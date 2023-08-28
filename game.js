@@ -3,6 +3,8 @@
 8/8/2023
  • start of changelog
 
+27/8/2023
+ • actually started development
 
 -------------------------------------------------------------------------------------------
 */
@@ -123,12 +125,80 @@ function getDist(sPos, tPos) {
 
 function correctAngle(a) {
     a = a%(Math.PI*2);
-    if (a > Math.PI) {
-        a = -(2*Math.PI-a);
-    } else if (a < -Math.PI) {
-        a = (2*Math.PI+a);
-    }
     return a;
+};
+
+function rotateAngle(r, rTarget, increment) {
+    if (Math.abs(r) > Math.PI*4 || Math.abs(rTarget) > Math.PI*4) {
+        throw "Error: You f*cked up the angle thing again...";
+    }
+    if (r == rTarget) {
+        return correctAngle(r);
+    }else if (rTarget - r <= Math.PI && rTarget - r > 0) {
+        if (rTarget - r < increment) {
+            r = rTarget;
+        } else {
+            r += increment;
+        }
+        return r;
+    } else if (r - rTarget < Math.PI && r - rTarget > 0) {
+        if (r - rTarget < increment) {
+            r = rTarget;
+        } else {
+            r -= increment;
+        }
+        return correctAngle(r);
+    } else {
+        if (r < rTarget) {
+            r += Math.PI*2;
+        } else {
+            rTarget += Math.PI*2;
+        }
+        return correctAngle(rotateAngle(r, rTarget, increment));
+    }
+};
+
+function aim(initial, final) {
+    if (initial == final) { 
+        return 0;
+    }
+    let diff = {x: final.x - initial.x, y: initial.y - final.y};
+    if (diff.x == 0) {
+        if (diff.y > 0) {
+            return 0;
+        } else {
+            return Math.PI;
+        }
+    } else if (diff.y == 0) {
+        if (diff.x > 0) {
+            return Math.PI/2;
+        } else {
+            return 3*Math.PI/2;
+        }
+    }
+    let angle = Math.atan(Math.abs(diff.y / diff.x));
+    if (diff.x > 0 && diff.y > 0) {
+        return Math.PI/2 - angle;
+    } else if (diff.x > 0 && diff.y < 0) {
+        return Math.PI/2 + angle;
+    } else if (diff.x < 0 && diff.y < 0) {
+        return 3*Math.PI/2 - angle;
+    } else {
+        return 3*Math.PI/2 + angle;
+    }
+};
+
+function toComponent(m, r) {
+    console.log('current bearing:', r*180/Math.PI);
+    return {x: m * Math.sin(r), y: -m * Math.cos(r)};
+};
+
+function offsetPoints(points, offset) {
+    for (let i = 0; i < points.length; i++){
+        points[i].x += offset.x;
+        points[i].y += offset.y;
+    }
+    return points;
 };
 
 function roman(number) {
@@ -186,6 +256,45 @@ function drawCircle(x, y, radius, fill, stroke, strokeWidth, opacity=1) { // dra
         ctx.stroke();
     }
     ctx.globalAlpha = 1.0;
+};
+
+function drawPolygon(point, offset, r, fill, stroke, absolute) {
+    let points = JSON.parse(JSON.stringify(point));
+    if (points.length < 3) {
+        throw "Error: Your polygon needs to have at least 3 points dumbass";
+    }
+    if (r != false) {
+        for (let i = 0; i < points.length; i++) {
+            points[i].x = point[i].x * Math.cos(r) - point[i].y * Math.sin(r); 
+            points[i].y = point[i].x * Math.sin(r) + point[i].y * Math.cos(r); 
+        }
+    }
+    var canvas = document.getElementById('main');
+    var ctx = canvas.getContext("2d");
+    ctx.resetTransform();
+    ctx.beginPath();
+    if (absolute) {
+        ctx.moveTo(points[0].x + offset.x, points[0].y + offset.y);
+    } else {
+        ctx.moveTo(points[0].x-player.x+display.x/2 + offset.x, points[0].y-player.y+display.y/2 + offset.y);
+    }
+    for (let i = 1; i < points.length; i++) {
+        if (absolute) {
+            ctx.lineTo(points[i].x + offset.x, points[i].y + offset.y);
+        } else {
+            ctx.lineTo(points[i].x-player.x+display.x/2 + offset.x, points[i].y-player.y+display.y/2 + offset.y);
+        }
+    }
+    ctx.closePath();
+    if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+    }
+    if (stroke) {
+        ctx.lineWidth = stroke.width;
+        ctx.strokeStyle = stroke.colour;
+        ctx.stroke();
+    }
 };
 
 function drawLight(x, y, radius) {
@@ -307,12 +416,12 @@ function grid(spacing) { // TODO: update colours
     var start = (player.y - display.y / 2) < 0 ? Math.ceil((player.y - display.y / 2) / spacing) * spacing : Math.floor((player.y - display.y / 2) / spacing) * spacing - spacing * 2;
     var end = (player.y + display.y / 2) < 0 ? Math.ceil((player.y + display.y / 2) / spacing) * spacing : Math.floor((player.y + display.y / 2) / spacing) * spacing + spacing * 2;
     for (let i = start; i <= end; i += spacing) {
-        drawLine({x:(player.x - display.x / 2) - spacing,y:i}, r=0, display.x+spacing*2, {colour:'#999999',width:10,opacity:0.1});
+        drawLine({x:(player.x - display.x / 2) - spacing,y:i}, r=0, display.x+spacing*2, {colour:'#999999',width:5,opacity:0.5});
     }
     start = (player.x - display.x / 2) < 0 ? Math.ceil((player.x - display.x / 2) / spacing) * spacing : Math.floor((player.x - display.x / 2) / spacing) * spacing - spacing * 2;
     end = (player.x + display.x / 2) < 0 ? Math.ceil((player.x + display.x / 2) / spacing) * spacing : Math.floor((player.x + display.x / 2) / spacing) * spacing + spacing * 2;
     for (var i = start; i < end; i += spacing) {
-        drawLine({x:i,y:(player.y - display.y / 2) -spacing}, r=Math.PI/2, display.y+spacing*2, {colour:'#999999',width:10,opacity:0.1});
+        drawLine({x:i,y:(player.y - display.y / 2) -spacing}, r=Math.PI/2, display.y+spacing*2, {colour:'#999999',width:5,opacity:0.5});
     }
 };
 
@@ -339,7 +448,7 @@ function drawExplosions(explosion) {
     drawCircle(explosion.x-r-player.x+display.x/2, explosion.y-r-player.y+display.y/2, Math.max(explosion.r-15, 0), false, '#fcd8d2', 15, 0.3*explosion.transparancy);
     drawCircle(explosion.x-r-player.x+display.x/2, explosion.y-r-player.y+display.y/2, Math.max(explosion.r-10, 0), false, '#fcd8d2', 10, 0.3*explosion.transparancy);
     drawCircle(explosion.x-r-player.x+display.x/2, explosion.y-r-player.y+display.y/2, Math.max(explosion.r-5, 0), false, '#fcd8d2', 5, 0.3*explosion.transparancy);
-    drawLight(explosion.x-r-player.x+display.x/2, explosion.y-r-player.y+display.y/2,explosion.maxR+explosion.r/2);
+    drawLight(explosion.x-r-player.x+display.x/2, explosion.y-r-player.y+display.y/2, explosion.maxR+explosion.r/2);
     if (explosion.r >= explosion.maxR) {
         explosion.transparancy *=0.9;
         explosion.r*=1.1;
@@ -356,13 +465,54 @@ function drawExplosions(explosion) {
 };
 
 // The return of the excessively overcomplicated data storage system
-var prototypedata = {
+const data = {
     player: {
-
+        x: 0,
+        y: 0,
+        r: 0, // direction of motion
+        mouseR: 0, // current Aim
+        lastMoved: 69,
+        v: 2, // normal walking speed
+        vr: 180 / 60 / 180 * Math.PI, // rotation of tracks (feet)
+        tr: 360 / 60 / 180 * Math.PI, // rotation of turret (main body)
+        keyboard: [],
+        hasClicked: 0,
+    },
+    template: {
+        physics: {
+            x: 0,     // x coordinate
+            y: 0,     // y coordinate
+            vx: 0,    // x component of velocity
+            vy: 0,    // y component of velocity
+            ax: 0,    // x component of acceleration
+            ay: 0,    // y component of acceleration
+            r: 0,     // rotation
+            vr: 0,    // angular velocity
+            ar: 0,    // angular acceleration
+            vDrag: 1, // drag (multiply by velocities to slow them down)
+            rDrag: 1, // angular drag (multiply by velocities to slow them down)
+            maxV: 25, // terminal velocity (25pixels/tick)
+            maxRV: Math.PI/15, // terminal angular velocity (720˚/second)
+        },
+        particle: {
+            type: 'circle', // circle or polygon
+            size: 10, // radius if circle, array of points if polygon
+            style: {
+                fill: {r: 255, g: 255, b: 255, a: 1},
+                stroke: {colour: {r: 255, g: 255, b: 255, a: 1}, width: 2},
+            },
+            decay: {
+                life: -1, // how many ticks the particle persists for, -1 for infinite
+                fillStyle: {r: 0, g: 0, b: 0, a: 0}, // add to fill style
+                strokeStyle: {r: 0, g: 0, b: 0, a: 0}, // add to stroke style
+                size: 1 // multiply size by this
+            }
+        },
     }
-}
-const data = JSON.parse(JSON.stringify(prototypedata));
+};
 
+var projectiles = [];
+var particles = [];
 // Loading savegames TODO: add saving entire game not just player
 var player = {};
 //localStorage.removeItem('player');
@@ -375,13 +525,14 @@ if (savedPlayer !== null) {
     // No saved data found
     console.log('no save found, creating new player');
     player = data.player;
-    player.keyboard = [];
-    player.hasClicked = 0;
-}
+};
 
 // Steal Data (get inputs)
-window.onkeyup = function(e) { player.keyboard[e.key] = false; }
-window.onkeydown = function(e) { player.keyboard[e.key] = true; }
+var mousepos = {x:0,y:0};
+var display = {x:window.innerWidth, y:window.innerHeight};
+
+window.onkeyup = function(e) { player.keyboard[e.key.toLowerCase()] = false; }
+window.onkeydown = function(e) { player.keyboard[e.key.toLowerCase()] = true; }
 document.addEventListener('mousedown', function(event) {
   if (event.button === 0) { // Check if left mouse button was clicked
     player.hasClicked = true;
@@ -411,33 +562,48 @@ function load() {
     game();
 };
 
-function handleInputs(player) { // TODO: Needs to be recoded (literally coppied from SSG)
+function handlePlayerMotion(player) {
+    player.mouseR = rotateAngle(player.mouseR, aim({x: display.x/2, y: display.y/2}, mousepos), player.tr);
+    player.lastMoved += 1;
+    let speed = player.v;
+    player.r = correctAngle(player.r);
+    if (player.keyboard.capslock) {
+        speed *= 4;
+    }
+    if (player.keyboard.shift) { 
+        speed *= 2.5;
+    }
+    let isMoving = false;
+    let vector = {x: 0, y: 0}; // special maths
     if (player.keyboard.w) { 
-        player.a += player.thrust*2; 
+        vector.y -= 1
+        isMoving = true;
     }
     if (player.keyboard.s) {
-        player.a -= player.thrust*2;
-        if (player.a < -player.terminalAcceleration/4) {
-            player.a = -player.terminalAcceleration/4;
-        }
+        vector.y += 1
+        isMoving = true;
     }
     if (player.keyboard.a) { 
-        player.r -= player.agi;
-        if (player.r >= 2*Math.PI) {
-            player.r -= Math.PI*2;
-        } else if (player.r <= -2*Math.PI) {
-            player.r += Math.PI*2;
-        }
+        vector.x -= 1
+        isMoving = true;
     }
     if (player.keyboard.d) { 
-        player.r += player.agi;
-        if (player.r >= 2*Math.PI) {
-            player.r -= Math.PI*2;
-        } else if (player.r <= -2*Math.PI) {
-            player.r += Math.PI*2;
-        }
+        vector.x += 1
+        isMoving = true;
     }
-    
+    if (isMoving) {
+        if (player.lastMoved >= 20) {
+            player.r = aim({x:0, y: 0}, vector);
+        } else {
+            player.r = rotateAngle(player.r, aim({x:0, y: 0}, vector), player.vr);
+        }
+        let velocity = toComponent(speed, player.r);
+        player.x += velocity.x;
+        player.y += velocity.y;
+        player.lastMoved = -1;
+    }
+    //console.log(player.keyboard);
+    /*
     for (var i = 0; i < player.weapons.length; i+=1) {
         if (player.weapons[i].keybind == CLICK) {
             if (player.hasClicked) {
@@ -448,10 +614,104 @@ function handleInputs(player) { // TODO: Needs to be recoded (literally coppied 
                 player = attemptShoot(i, player);
             }
         }
-    }
+    }*/
     return player;
 };
 
-function main() {
+function renderParticles(particles) {
 
+};
+
+function drawPlayer(player) {
+    // Feet
+    let points = [
+        {x: -10, y: 60},
+        {x: 10, y: 60},
+        {x: 15, y: 50},
+        {x: 15, y: -50},
+        {x: 10, y: -60},
+        {x: -10, y: -60},
+        {x: -15, y: -50},
+        {x: -15, y: 50},
+    ];
+    points = offsetPoints(points, {x: -30, y: -5});
+    drawPolygon(points, {x: player.x, y: player.y}, player.r, 'rgba(130, 130, 130, 1)', {colour: '#696969', width: 5}, false);
+    points = offsetPoints(points, {x: 60, y: 0});
+    drawPolygon(points, {x: player.x, y: player.y}, player.r, 'rgba(130, 130, 130, 1)', {colour: '#696969', width: 5}, false);
+    // Main Body
+    points = [
+        {x: -60, y: 40},
+        {x: 60, y: 40},
+        {x: 70, y: 30},
+        {x: 70, y: -30},
+        {x: 60, y: -40},
+        {x: -60, y: -40},
+        {x: -70, y: -30},
+        {x: -70, y: 30},
+    ];
+    drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(210, 210, 210, 1)', {colour: '#696969', width: 10}, false);
+    // Arms
+    points = [
+        {x: -20, y: 50},
+        {x: 20, y: 50},
+        {x: 25, y: 40},
+        {x: 25, y: -60},
+        {x: 20, y: -70},
+        {x: -20, y: -70},
+        {x: -25, y: -60},
+        {x: -25, y: 40},
+    ];
+    points = offsetPoints(points, {x: -100, y: 0});
+    drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(200, 200, 200, 1)', {colour: '#696969', width: 10}, false);
+    points = offsetPoints(points, {x: 200, y: 0});
+    drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(200, 200, 200, 1)', {colour: '#696969', width: 10}, false);
+    // Cannons
+    points = [
+        {x: -10, y: 0},
+        {x: 10, y: 0},
+        {x: 10, y: 30},
+        {x: -10, y: 30},
+    ];
+    points = offsetPoints(points, {x: -100, y: -100});
+    drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(150, 150, 150, 1)', {colour: '#696969', width: 5}, false);
+    points = offsetPoints(points, {x: 200, y: 0});
+    drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(150, 150, 150, 1)', {colour: '#696969', width: 5}, false);
+    // Head
+    drawCircle(player.x-player.x+display.x/2, player.y-player.y+display.y/2, 25, 'rgba(160, 160, 160, 1)', '#696969', 5, opacity=1);
 }
+
+function main() {
+    clearCanvas();
+    grid(200);
+    player = handlePlayerMotion(player);
+    const points = [
+        {x: 100, y: 100},
+        {x: 200, y: 50},
+        {x: 300, y: 100},
+        {x: 200, y: 200}
+    ];
+    drawPolygon(points, {x: 100, y: 100}, 0, 'rgba(0, 0, 255, 0.75)', {colour: '#696969', width: 10}, false);
+    drawPolygon(points, {x: 100, y: 100}, Math.PI/2, 'rgba(0, 0, 255, 0.75)', {colour: '#696969', width: 10}, false);
+    drawPolygon(points, {x: 100, y: 100}, Math.PI, 'rgba(0, 0, 255, 0.75)', {colour: '#696969', width: 10}, false);
+    drawPolygon(points, {x: 100, y: 100}, 3*Math.PI/2, 'rgba(0, 0, 255, 0.75)', {colour: '#696969', width: 10}, false);
+    const points2 = [
+        {x: 0, y: 0},
+        {x: 100, y: 0},
+        {x: 100, y: 100},
+        {x: 0, y: 100}
+    ];
+    drawPolygon(points2, {x: 0, y: 0}, Math.PI/4, 'rgba(255, 0, 0, 0.75)', {colour: '#696969', width: 10}, false);
+    drawPolygon(points2, {x: 0, y: 0}, false, 'rgba(0, 255, 0, 0.5)', {colour: '#696969', width: 10}, false);
+
+    drawPlayer(player);
+}
+
+var t=0;
+async function game() {
+    while (1) {
+        main();
+        await sleep(1000/60);
+        t++;
+    }
+}
+
