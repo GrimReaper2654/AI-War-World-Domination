@@ -566,6 +566,83 @@ const data = {
                     stroke: {colour: '#696969', width: 10},
                 }
             },
+            {
+                id: 'arm2',
+                facing: 'turret',
+                type: 'polygon', 
+                rOffset: 0,
+                size: [
+                    {x: -20, y: 50},
+                    {x: 20, y: 50},
+                    {x: 25, y: 40},
+                    {x: 25, y: -60},
+                    {x: 20, y: -70},
+                    {x: -20, y: -70},
+                    {x: -25, y: -60},
+                    {x: -25, y: 40},
+                ],
+                offset: {x: 100, y: 0},
+                style: {
+                    fill: 'rgba(200, 200, 200, 1)',
+                    stroke: {colour: '#696969', width: 10},
+                }
+            },
+            {
+                id: 'gunLeft1',
+                facing: 'turret',
+                type: 'polygon', 
+                rOffset: 0,
+                size: [
+                    {x: -10, y: 0},
+                    {x: 10, y: 0},
+                    {x: 10, y: 30},
+                    {x: -10, y: 30},
+                ],
+                offset: {x: -100, y: -100},
+                style: {
+                    fill: 'rgba(150, 150, 150, 1)',
+                    stroke: {colour: '#696969', width: 5},
+                }
+            },
+            {
+                id: 'gunRight1',
+                facing: 'turret',
+                type: 'polygon', 
+                rOffset: 0,
+                size: [
+                    {x: -10, y: 0},
+                    {x: 10, y: 0},
+                    {x: 10, y: 30},
+                    {x: -10, y: 30},
+                ],
+                offset: {x: 100, y: -100},
+                style: {
+                    fill: 'rgba(150, 150, 150, 1)',
+                    stroke: {colour: '#696969', width: 5},
+                },
+                cannon: {
+                    reload: {c: 0, t: 10},
+                    spread: Math.PI/6,
+                    bullet: {
+                        dmg: 100,
+                        v: 20,
+                        drag: 0.99,
+                        
+                    },
+                },
+            },
+            {
+                id: 'gunRight1',
+                facing: 'body',
+                type: 'circle', 
+                rOffset: 0,
+                size: 25,
+                offset: {x: 0, y: 0},
+                style: {
+                    fill: 'rgba(150, 150, 150, 1)',
+                    stroke: {colour: '#696969', width: 5},
+                },
+            },
         ],
     },
     template: {
@@ -778,7 +855,6 @@ function renderParticles(particles) {
 };
 
 function drawPlayer(player) {
-
     for (let i = 0; i < player.parts.length; i++) {
         if (player.parts[i].type == 'polygon') {
             let np = offsetPoints(JSON.parse(JSON.stringify(player.parts[i].size)), player.parts[i].offset);
@@ -792,64 +868,22 @@ function drawPlayer(player) {
             drawCircle(display.x/2 + player.parts[i].offset.x, display.y/2 + player.parts[i].offset.y, player.parts[i].size, player.parts[i].style.fill, player.parts[i].style.stroke.colour, player.parts[i].style.stroke.width, opacity=1);
         }
     }
-    /*
-    // Feet
-    let points = [
-        {x: -10, y: 60},
-        {x: 10, y: 60},
-        {x: 15, y: 50},
-        {x: 15, y: -50},
-        {x: 10, y: -60},
-        {x: -10, y: -60},
-        {x: -15, y: -50},
-        {x: -15, y: 50},
-    ];
-    points = offsetPoints(points, {x: -30, y: -5});
-    drawPolygon(points, {x: player.x, y: player.y}, player.r, 'rgba(130, 130, 130, 1)', {colour: '#696969', width: 5}, false);
-    points = offsetPoints(points, {x: 60, y: 0});
-    drawPolygon(points, {x: player.x, y: player.y}, player.r, 'rgba(130, 130, 130, 1)', {colour: '#696969', width: 5}, false);
-    // Main Body
-    points = [
-        {x: -60, y: 40},
-        {x: 60, y: 40},
-        {x: 70, y: 30},
-        {x: 70, y: -30},
-        {x: 60, y: -40},
-        {x: -60, y: -40},
-        {x: -70, y: -30},
-        {x: -70, y: 30},
-    ];
-    drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(210, 210, 210, 1)', {colour: '#696969', width: 10}, false);
-    // Arms
-    points = [
-        {x: -20, y: 50},
-        {x: 20, y: 50},
-        {x: 25, y: 40},
-        {x: 25, y: -60},
-        {x: 20, y: -70},
-        {x: -20, y: -70},
-        {x: -25, y: -60},
-        {x: -25, y: 40},
-    ];
-    points = offsetPoints(points, {x: -100, y: 0});
-    drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(200, 200, 200, 1)', {colour: '#696969', width: 10}, false);
-    points = offsetPoints(points, {x: 200, y: 0});
-    drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(200, 200, 200, 1)', {colour: '#696969', width: 10}, false);
-    // Cannons
-    points = [
-        {x: -10, y: 0},
-        {x: 10, y: 0},
-        {x: 10, y: 30},
-        {x: -10, y: 30},
-    ];
-    points = offsetPoints(points, {x: -100, y: -100});
-    drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(150, 150, 150, 1)', {colour: '#696969', width: 5}, false);
-    points = offsetPoints(points, {x: 200, y: 0});
-    drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(150, 150, 150, 1)', {colour: '#696969', width: 5}, false);
-    */
-    // Head
-    drawCircle(player.x-player.x+display.x/2, player.y-player.y+display.y/2, 25, 'rgba(160, 160, 160, 1)', '#696969', 5, opacity=1);
 };
+
+function handleShooting(entity, hasFired) {
+    for (let i = 0; i < entity.parts.length; i++) {
+        if (entity.parts[i].cannon) {
+            if (entity.parts[i].cannon.reload.c > 0) {
+                entity.parts[i].cannon.reload.c -= 1;
+            } else if (hasFired) {
+                entity.parts[i].cannon.reload.c = entity.parts[i].cannon.reload.t;
+                let bullet = Object.assign({}, JSON.parse(JSON.stringify(data.template.physics)), JSON.parse(JSON.stringify(data.template.particle)), JSON.parse(JSON.stringify(entity.parts[i].cannon.bullet)));
+
+                projectiles.push()
+            }
+        }
+    }
+}
 
 function main() {
     clearCanvas();
@@ -875,7 +909,6 @@ function main() {
     ];
     drawPolygon(points2, {x: 0, y: 0}, Math.PI/4, 'rgba(255, 0, 0, 0.75)', {colour: '#696969', width: 10}, false);
     drawPolygon(points2, {x: 0, y: 0}, false, 'rgba(0, 255, 0, 0.5)', {colour: '#696969', width: 10}, false);
-
     drawPlayer(player);
 }
 
