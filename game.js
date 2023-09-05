@@ -239,6 +239,10 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 };
 
+function toColour(colour) {
+    return `rgba(${colour.r}, ${colour.g}, ${colour.b}, ${colour.a})`;
+};
+
 function drawCircle(x, y, radius, fill, stroke, strokeWidth, opacity=1) { // draw a circle
     var canvas = document.getElementById('main');
     var ctx = canvas.getContext("2d");
@@ -477,6 +481,92 @@ const data = {
         tr: 360 / 60 / 180 * Math.PI, // rotation of turret (main body)
         keyboard: [],
         hasClicked: 0,
+        parts: [
+            {
+                id: 'foot1',
+                type: 'polygon', 
+                facing: 'body',
+                rOffset: 0,
+                size: [
+                    {x: -10, y: 60},
+                    {x: 10, y: 60},
+                    {x: 15, y: 50},
+                    {x: 15, y: -50},
+                    {x: 10, y: -60},
+                    {x: -10, y: -60},
+                    {x: -15, y: -50},
+                    {x: -15, y: 50},
+                ],
+                offset: {x: -30, y: -5},
+                style: {
+                    fill: 'rgba(130, 130, 130, 1)',
+                    stroke: {colour: '#696969', width: 5},
+                }
+            },
+            {
+                id: 'foot2',
+                facing: 'body',
+                type: 'polygon', 
+                rOffset: 0,
+                size: [
+                    {x: -10, y: 60},
+                    {x: 10, y: 60},
+                    {x: 15, y: 50},
+                    {x: 15, y: -50},
+                    {x: 10, y: -60},
+                    {x: -10, y: -60},
+                    {x: -15, y: -50},
+                    {x: -15, y: 50},
+                ],
+                offset: {x: 30, y: -5},
+                style: {
+                    fill: 'rgba(130, 130, 130, 1)',
+                    stroke: {colour: '#696969', width: 5},
+                }
+            },
+            {
+                id: 'mainBody',
+                facing: 'turret',
+                type: 'polygon', 
+                rOffset: 0,
+                size: [
+                    {x: -60, y: 40},
+                    {x: 60, y: 40},
+                    {x: 70, y: 30},
+                    {x: 70, y: -30},
+                    {x: 60, y: -40},
+                    {x: -60, y: -40},
+                    {x: -70, y: -30},
+                    {x: -70, y: 30},
+                ],
+                offset: {x: 0, y: 0},
+                style: {
+                    fill: 'rgba(210, 210, 210, 1)',
+                    stroke: {colour: '#696969', width: 10},
+                }
+            },
+            {
+                id: 'arm1',
+                facing: 'turret',
+                type: 'polygon', 
+                rOffset: 0,
+                size: [
+                    {x: -20, y: 50},
+                    {x: 20, y: 50},
+                    {x: 25, y: 40},
+                    {x: 25, y: -60},
+                    {x: 20, y: -70},
+                    {x: -20, y: -70},
+                    {x: -25, y: -60},
+                    {x: -25, y: 40},
+                ],
+                offset: {x: -100, y: 0},
+                style: {
+                    fill: 'rgba(200, 200, 200, 1)',
+                    stroke: {colour: '#696969', width: 10},
+                }
+            },
+        ],
     },
     template: {
         physics: {
@@ -575,19 +665,19 @@ function handlePlayerMotion(player) {
     }
     let isMoving = false;
     let vector = {x: 0, y: 0}; // special maths
-    if (player.keyboard.w) { 
+    if (player.keyboard.w || player.keyboard.arrowup) { 
         vector.y -= 1
         isMoving = true;
     }
-    if (player.keyboard.s) {
+    if (player.keyboard.s || player.keyboard.arrowdown) {
         vector.y += 1
         isMoving = true;
     }
-    if (player.keyboard.a) { 
+    if (player.keyboard.a || player.keyboard.arrowleft) { 
         vector.x -= 1
         isMoving = true;
     }
-    if (player.keyboard.d) { 
+    if (player.keyboard.d || player.keyboard.arrowright) { 
         vector.x += 1
         isMoving = true;
     }
@@ -617,12 +707,92 @@ function handlePlayerMotion(player) {
     }*/
     return player;
 };
+/*
+physics: {
+    x: 0,     // x coordinate
+    y: 0,     // y coordinate
+    vx: 0,    // x component of velocity
+    vy: 0,    // y component of velocity
+    ax: 0,    // x component of acceleration
+    ay: 0,    // y component of acceleration
+    r: 0,     // rotation
+    vr: 0,    // angular velocity
+    ar: 0,    // angular acceleration
+    vDrag: 1, // drag (multiply by velocities to slow them down)
+    rDrag: 1, // angular drag (multiply by velocities to slow them down)
+    maxV: 25, // terminal velocity (25pixels/tick)
+    maxRV: Math.PI/15, // terminal angular velocity (720˚/second)
+},
+particle: {
+    type: 'circle', // circle or polygon
+    size: 10, // radius if circle, array of points if polygon
+    style: {
+        fill: {r: 255, g: 255, b: 255, a: 1},
+        stroke: {colour: {r: 255, g: 255, b: 255, a: 1}, width: 2},
+    },
+    decay: {
+        life: -1, // how many ticks the particle persists for, -1 for infinite
+        fillStyle: {r: 0, g: 0, b: 0, a: 0}, // add to fill style
+        strokeStyle: {r: 0, g: 0, b: 0, a: 0}, // add to stroke style
+        size: 1 // multiply size by this
+    }
+},
+*/
+
+function simulatePhysics(objects) {
+    let newObjs = []
+    for (let i = 0; i < objects.length; i++) {
+        let newObj = JSON.parse(JSON.stringify(objects[i]));
+        newObj.vx += newObj.ax;
+        newObj.vy += newObj.ay;
+        newObj.vr += newObj.ar;
+        newObj.vx *= newObj.vDrag;
+        newObj.vy *= newObj.vDrag;
+        newObj.vr += newObj.rDrag;
+        let velocity = Math.sqrt(Math.abs(newObj.vx**2) + Math.abs(newObj.vy**2));
+        if (velocity > newObj.maxV) {
+            let reduction = newObj.maxV / velocity;
+            newObj.vx *= reduction;
+            newObj.vy *= reduction;
+        }
+        newObj.vr = min(newObj.vr, newObj.maxRV);
+        newObj.x += newObj.vx;
+        newObj.y += newObj.vy;
+        newObj.r += newObj.vr;
+        newObjs.push(newObj);
+    }
+    return newObjs;
+};
 
 function renderParticles(particles) {
-
+    for (let i = 0; i < particles.length; i++) {
+        let obj = particles[i];
+        if (obj.type == 'circle') {
+            drawCircle(obj.x-player.x+display.x/2, obj.y-player.y+display.y/2, obj.size, toColour(obj.style.fill), toColour(obj.style.stroke.colour), obj.style.stroke.width, opacity=1);
+        } else if (obj.type == 'polygon') {
+            drawPolygon(obj.size, {x: obj.x, y: obj.y}, obj.r, toColour(obj.style.fill), {colour: toColour(obj.style.stroke.colour), width: obj.style.stroke.width}, false);
+        } else {
+            throw 'ERROR: unsupported particle type';
+        }
+    }
 };
 
 function drawPlayer(player) {
+
+    for (let i = 0; i < player.parts.length; i++) {
+        if (player.parts[i].type == 'polygon') {
+            let np = offsetPoints(JSON.parse(JSON.stringify(player.parts[i].size)), player.parts[i].offset);
+            let facing = player.r;
+            if (player.parts[i].facing == 'turret') {
+                facing = player.mouseR;
+            }
+            facing += player.parts[i].rOffset;
+            drawPolygon(np, {x: player.x, y: player.y}, facing, player.parts[i].style.fill, player.parts[i].style.stroke, false);
+        } else {
+            drawCircle(display.x/2 + player.parts[i].offset.x, display.y/2 + player.parts[i].offset.y, player.parts[i].size, player.parts[i].style.fill, player.parts[i].style.stroke.colour, player.parts[i].style.stroke.width, opacity=1);
+        }
+    }
+    /*
     // Feet
     let points = [
         {x: -10, y: 60},
@@ -676,18 +846,21 @@ function drawPlayer(player) {
     drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(150, 150, 150, 1)', {colour: '#696969', width: 5}, false);
     points = offsetPoints(points, {x: 200, y: 0});
     drawPolygon(points, {x: player.x, y: player.y}, player.mouseR, 'rgba(150, 150, 150, 1)', {colour: '#696969', width: 5}, false);
+    */
     // Head
     drawCircle(player.x-player.x+display.x/2, player.y-player.y+display.y/2, 25, 'rgba(160, 160, 160, 1)', '#696969', 5, opacity=1);
-}
+};
 
 function main() {
     clearCanvas();
     grid(200);
     player = handlePlayerMotion(player);
+    renderParticles(projectiles);
+    projectiles = simulatePhysics(projectiles);
     const points = [
         {x: 100, y: 100},
         {x: 200, y: 50},
-        {x: 300, y: 100},
+        {x: 150, y: 100},
         {x: 200, y: 200}
     ];
     drawPolygon(points, {x: 100, y: 100}, 0, 'rgba(0, 0, 255, 0.75)', {colour: '#696969', width: 10}, false);
