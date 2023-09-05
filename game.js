@@ -189,7 +189,6 @@ function aim(initial, final) {
 };
 
 function toComponent(m, r) {
-    console.log('current bearing:', r*180/Math.PI);
     return {x: m * Math.sin(r), y: -m * Math.cos(r)};
 };
 
@@ -231,7 +230,6 @@ function roman(number) {
             number -= romanNumerals[key];
         }
     }
-    console.log(romanNumeral);
     return romanNumeral;
 };
 
@@ -468,12 +466,23 @@ function drawExplosions(explosion) {
     return false;
 };
 
+function normalDistribution(mean, sDiv) {
+    let u = 0;
+    let v = 0;
+    while (u === 0) u = Math.random(); 
+    while (v === 0) v = Math.random(); 
+    let z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    return mean + z * sDiv;
+};
+
 // The return of the excessively overcomplicated data storage system
 const data = {
     player: {
         x: 0,
         y: 0,
         r: 0, // direction of motion
+        vx: 0,
+        vy: 0,
         mouseR: 0, // current Aim
         lastMoved: 69,
         v: 2, // normal walking speed
@@ -602,7 +611,31 @@ const data = {
                 style: {
                     fill: 'rgba(150, 150, 150, 1)',
                     stroke: {colour: '#696969', width: 5},
-                }
+                },
+                cannon: {
+                    keybind: 'click',
+                    x: 0,
+                    y: 0,
+                    reload: {c: 0, t: 3},
+                    spread: Math.PI/48,
+                    bullet: {
+                        type: 'circle', 
+                        size: 8,
+                        style: {
+                            fill: {r: 100, g: 100, b: 100, a: 1},
+                            stroke: {colour: {r: 69, g: 69, b: 69, a: 1}, width: 3},
+                        },
+                        decay: {
+                            life: 600, 
+                            fillStyle: {r: 0, g: 0, b: 0, a: 0}, 
+                            strokeStyle: {r: 0, g: 0, b: 0, a: 0}, 
+                            size: 1
+                        },
+                        dmg: 100,
+                        v: 20,
+                        vDrag: 0.99,
+                    },
+                },
             },
             {
                 id: 'gunRight1',
@@ -621,18 +654,32 @@ const data = {
                     stroke: {colour: '#696969', width: 5},
                 },
                 cannon: {
-                    reload: {c: 0, t: 10},
-                    spread: Math.PI/6,
+                    keybind: 'click',
+                    x: 0,
+                    y: 0,
+                    reload: {c: 0, t: 3},
+                    spread: Math.PI/48,
                     bullet: {
+                        type: 'circle', 
+                        size: 8,
+                        style: {
+                            fill: {r: 100, g: 100, b: 100, a: 1},
+                            stroke: {colour: {r: 69, g: 69, b: 69, a: 1}, width: 3},
+                        },
+                        decay: {
+                            life: 600, 
+                            fillStyle: {r: 0, g: 0, b: 0, a: 0}, 
+                            strokeStyle: {r: 0, g: 0, b: 0, a: 0}, 
+                            size: 1
+                        },
                         dmg: 100,
                         v: 20,
-                        drag: 0.99,
-                        
+                        vDrag: 0.99,
                     },
                 },
             },
             {
-                id: 'gunRight1',
+                id: 'head',
                 facing: 'body',
                 type: 'circle', 
                 rOffset: 0,
@@ -702,12 +749,12 @@ window.onkeyup = function(e) { player.keyboard[e.key.toLowerCase()] = false; }
 window.onkeydown = function(e) { player.keyboard[e.key.toLowerCase()] = true; }
 document.addEventListener('mousedown', function(event) {
   if (event.button === 0) { // Check if left mouse button was clicked
-    player.hasClicked = true;
+    player.keyboard.click = true;
   }
 });
 document.addEventListener('mouseup', function(event) {
   if (event.button === 0) { // Check if left mouse button was released
-    player.hasClicked = false;
+    player.keyboard.click = false;
   }
 });
 window.addEventListener("resize", function () {
@@ -767,6 +814,8 @@ function handlePlayerMotion(player) {
         let velocity = toComponent(speed, player.r);
         player.x += velocity.x;
         player.y += velocity.y;
+        player.vx = velocity.x;
+        player.vy = velocity.y;
         player.lastMoved = -1;
     }
     //console.log(player.keyboard);
@@ -832,7 +881,7 @@ function simulatePhysics(objects) {
             newObj.vx *= reduction;
             newObj.vy *= reduction;
         }
-        newObj.vr = min(newObj.vr, newObj.maxRV);
+        newObj.vr = Math.min(newObj.vr, newObj.maxRV);
         newObj.x += newObj.vx;
         newObj.y += newObj.vy;
         newObj.r += newObj.vr;
@@ -870,25 +919,38 @@ function drawPlayer(player) {
     }
 };
 
-function handleShooting(entity, hasFired) {
+function handleShooting(entity) {
     for (let i = 0; i < entity.parts.length; i++) {
         if (entity.parts[i].cannon) {
             if (entity.parts[i].cannon.reload.c > 0) {
                 entity.parts[i].cannon.reload.c -= 1;
-            } else if (hasFired) {
-                entity.parts[i].cannon.reload.c = entity.parts[i].cannon.reload.t;
-                let bullet = Object.assign({}, JSON.parse(JSON.stringify(data.template.physics)), JSON.parse(JSON.stringify(data.template.particle)), JSON.parse(JSON.stringify(entity.parts[i].cannon.bullet)));
-
-                projectiles.push()
+            } else {
+                if (entity.keyboard[entity.parts[i].cannon.keybind]) {
+                    entity.parts[i].cannon.reload.c = entity.parts[i].cannon.reload.t;
+                    let facing = entity.r;
+                    if (entity.parts[i].facing == 'turret') {
+                        facing = entity.mouseR;
+                    }
+                    facing += normalDistribution(0, entity.parts[i].cannon.spread);
+                    let bullet = Object.assign({}, JSON.parse(JSON.stringify(data.template.physics)), JSON.parse(JSON.stringify(entity.parts[i].cannon.bullet)));
+                    bullet.x = entity.x + ((entity.parts[i].offset.x + entity.parts[i].cannon.x) * Math.cos(facing) - (entity.parts[i].offset.y + entity.parts[i].cannon.y) * Math.sin(facing));
+                    bullet.y = entity.y + ((entity.parts[i].offset.x + entity.parts[i].cannon.x) * Math.sin(facing) + (entity.parts[i].offset.y + entity.parts[i].cannon.y) * Math.cos(facing));
+                    let res = toComponent(bullet.v, facing);
+                    bullet.vx = res.x + entity.vx;
+                    bullet.vy = res.y + entity.vy;
+                    projectiles.push(bullet);
+                }
             }
         }
     }
+    return entity;
 }
 
 function main() {
     clearCanvas();
     grid(200);
     player = handlePlayerMotion(player);
+    player = handleShooting(player);
     renderParticles(projectiles);
     projectiles = simulatePhysics(projectiles);
     const points = [
@@ -921,3 +983,10 @@ async function game() {
     }
 }
 
+/*
+
+points[i].x = point[i].x * Math.cos(r) - point[i].y * Math.sin(r); 
+points[i].y = point[i].x * Math.sin(r) + point[i].y * Math.cos(r); 
+
+
+*/
