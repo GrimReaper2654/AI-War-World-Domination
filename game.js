@@ -626,7 +626,7 @@ const data = {
                             stroke: {colour: {r: 69, g: 69, b: 69, a: 1}, width: 3},
                         },
                         decay: {
-                            life: 600, 
+                            life: 120, 
                             fillStyle: {r: 0, g: 0, b: 0, a: 0}, 
                             strokeStyle: {r: 0, g: 0, b: 0, a: 0}, 
                             size: 1
@@ -667,7 +667,7 @@ const data = {
                             stroke: {colour: {r: 69, g: 69, b: 69, a: 1}, width: 3},
                         },
                         decay: {
-                            life: 600, 
+                            life: 120, 
                             fillStyle: {r: 0, g: 0, b: 0, a: 0}, 
                             strokeStyle: {r: 0, g: 0, b: 0, a: 0}, 
                             size: 1
@@ -716,7 +716,7 @@ const data = {
                 stroke: {colour: {r: 255, g: 255, b: 255, a: 1}, width: 2},
             },
             decay: {
-                life: -1, // how many ticks the particle persists for, -1 for infinite
+                life: Infinity, // how many ticks the particle persists for
                 fillStyle: {r: 0, g: 0, b: 0, a: 0}, // add to fill style
                 strokeStyle: {r: 0, g: 0, b: 0, a: 0}, // add to stroke style
                 size: 1 // multiply size by this
@@ -946,13 +946,38 @@ function handleShooting(entity) {
     return entity;
 }
 
+function handleDecay(objs) {
+    let newObjs = []
+    for (let i = 0; i < objs.length; i++) {
+        let obj = objs[i];
+        obj.decay.life -= 1;
+        if(obj.decay.life > 0) {
+            if (obj.type == 'polygon') {
+                for (let j = 0; j < obj.size.length; j++) {
+                    obj.size[j].x *= obj.decay.size;
+                    obj.size[j].y *= obj.decay.size;
+                }
+            } else {
+                obj.size *= obj.decay.size;
+            }
+            obj.style.fill.r += obj.decay.fillStyle.r;
+            obj.style.fill.g += obj.decay.fillStyle.g;
+            obj.style.fill.b += obj.decay.fillStyle.b;
+            obj.style.fill.a += obj.decay.fillStyle.a;
+            obj.style.stroke.r += obj.decay.strokeStyle.r;
+            obj.style.stroke.g += obj.decay.strokeStyle.g;
+            obj.style.stroke.b += obj.decay.strokeStyle.b;
+            obj.style.stroke.a += obj.decay.strokeStyle.a;
+            newObjs.push(obj);
+        }
+    }
+    return newObjs;
+}
+
 function main() {
     clearCanvas();
     grid(200);
-    player = handlePlayerMotion(player);
-    player = handleShooting(player);
-    renderParticles(projectiles);
-    projectiles = simulatePhysics(projectiles);
+    
     const points = [
         {x: 100, y: 100},
         {x: 200, y: 50},
@@ -971,6 +996,13 @@ function main() {
     ];
     drawPolygon(points2, {x: 0, y: 0}, Math.PI/4, 'rgba(255, 0, 0, 0.75)', {colour: '#696969', width: 10}, false);
     drawPolygon(points2, {x: 0, y: 0}, false, 'rgba(0, 255, 0, 0.5)', {colour: '#696969', width: 10}, false);
+    
+
+    player = handlePlayerMotion(player);
+    player = handleShooting(player);
+    renderParticles(projectiles);
+    projectiles = simulatePhysics(projectiles);
+    projectiles = handleDecay(projectiles);
     drawPlayer(player);
 }
 
@@ -984,9 +1016,16 @@ async function game() {
 }
 
 /*
-
-points[i].x = point[i].x * Math.cos(r) - point[i].y * Math.sin(r); 
-points[i].y = point[i].x * Math.sin(r) + point[i].y * Math.cos(r); 
+style: {
+    fill: {r: 255, g: 255, b: 255, a: 1},
+    stroke: {colour: {r: 255, g: 255, b: 255, a: 1}, width: 2},
+},
+decay: {
+    life: Infinity, // how many ticks the particle persists for
+    fillStyle: {r: 0, g: 0, b: 0, a: 0}, // add to fill style
+    strokeStyle: {r: 0, g: 0, b: 0, a: 0}, // add to stroke style
+    size: 1 // multiply size by this
+}
 
 
 */
