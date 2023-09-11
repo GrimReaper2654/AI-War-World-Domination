@@ -475,6 +475,27 @@ function normalDistribution(mean, sDiv) {
     return mean + z * sDiv;
 };
 
+function pointInPolygon(point, polygon) { // Chat GPT pog
+    const x = point[0];
+    const y = point[1];
+    let inside = false;
+
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i][0];
+        const yi = polygon[i][1];
+        const xj = polygon[j][0];
+        const yj = polygon[j][1];
+
+        const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+
+        if (intersect) {
+            inside = !inside;
+        }
+    }
+
+    return inside;
+};
+
 // The return of the excessively overcomplicated data storage system
 const data = {
     player: {
@@ -489,7 +510,7 @@ const data = {
         vr: 180 / 60 / 180 * Math.PI, // rotation of tracks (feet)
         tr: 360 / 60 / 180 * Math.PI, // rotation of turret (main body)
         keyboard: [],
-        hasClicked: 0,
+        collisionR: 150,
         parts: [
             {
                 id: 'foot1',
@@ -634,6 +655,7 @@ const data = {
                         dmg: 100,
                         v: 20,
                         vDrag: 0.99,
+                        friendly: true,
                     },
                 },
             },
@@ -675,6 +697,7 @@ const data = {
                         dmg: 100,
                         v: 20,
                         vDrag: 0.99,
+                        friendly: true,
                     },
                 },
             },
@@ -686,7 +709,7 @@ const data = {
                 size: 25,
                 offset: {x: 0, y: 0},
                 style: {
-                    fill: 'rgba(150, 150, 150, 1)',
+                    fill: 'rgba(69, 69, 69, 1)',
                     stroke: {colour: '#696969', width: 5},
                 },
             },
@@ -727,6 +750,7 @@ const data = {
 
 var projectiles = [];
 var particles = [];
+var entities = [];
 // Loading savegames TODO: add saving entire game not just player
 var player = {};
 //localStorage.removeItem('player');
@@ -779,6 +803,8 @@ function load() {
 function handlePlayerMotion(player) {
     player.mouseR = rotateAngle(player.mouseR, aim({x: display.x/2, y: display.y/2}, mousepos), player.tr);
     player.lastMoved += 1;
+    player.vx = 0;
+    player.vy = 0;
     let speed = player.v;
     player.r = correctAngle(player.r);
     if (player.keyboard.capslock) {
@@ -833,37 +859,10 @@ function handlePlayerMotion(player) {
     }*/
     return player;
 };
-/*
-physics: {
-    x: 0,     // x coordinate
-    y: 0,     // y coordinate
-    vx: 0,    // x component of velocity
-    vy: 0,    // y component of velocity
-    ax: 0,    // x component of acceleration
-    ay: 0,    // y component of acceleration
-    r: 0,     // rotation
-    vr: 0,    // angular velocity
-    ar: 0,    // angular acceleration
-    vDrag: 1, // drag (multiply by velocities to slow them down)
-    rDrag: 1, // angular drag (multiply by velocities to slow them down)
-    maxV: 25, // terminal velocity (25pixels/tick)
-    maxRV: Math.PI/15, // terminal angular velocity (720˚/second)
-},
-particle: {
-    type: 'circle', // circle or polygon
-    size: 10, // radius if circle, array of points if polygon
-    style: {
-        fill: {r: 255, g: 255, b: 255, a: 1},
-        stroke: {colour: {r: 255, g: 255, b: 255, a: 1}, width: 2},
-    },
-    decay: {
-        life: -1, // how many ticks the particle persists for, -1 for infinite
-        fillStyle: {r: 0, g: 0, b: 0, a: 0}, // add to fill style
-        strokeStyle: {r: 0, g: 0, b: 0, a: 0}, // add to stroke style
-        size: 1 // multiply size by this
-    }
-},
-*/
+
+function detectCollision(obj1, obj2) {
+
+};
 
 function simulatePhysics(objects) {
     let newObjs = []
@@ -917,6 +916,7 @@ function drawPlayer(player) {
             drawCircle(display.x/2 + player.parts[i].offset.x, display.y/2 + player.parts[i].offset.y, player.parts[i].size, player.parts[i].style.fill, player.parts[i].style.stroke.colour, player.parts[i].style.stroke.width, opacity=1);
         }
     }
+    drawCircle(display.x/2, display.y/2, player.collisionR, 'rgba(255, 255, 255, 0.2)', 'rgba(255, 0, 0, 0.9)', 5, opacity=1);
 };
 
 function handleShooting(entity) {
@@ -931,10 +931,10 @@ function handleShooting(entity) {
                     if (entity.parts[i].facing == 'turret') {
                         facing = entity.mouseR;
                     }
-                    facing += normalDistribution(0, entity.parts[i].cannon.spread);
                     let bullet = Object.assign({}, JSON.parse(JSON.stringify(data.template.physics)), JSON.parse(JSON.stringify(entity.parts[i].cannon.bullet)));
                     bullet.x = entity.x + ((entity.parts[i].offset.x + entity.parts[i].cannon.x) * Math.cos(facing) - (entity.parts[i].offset.y + entity.parts[i].cannon.y) * Math.sin(facing));
                     bullet.y = entity.y + ((entity.parts[i].offset.x + entity.parts[i].cannon.x) * Math.sin(facing) + (entity.parts[i].offset.y + entity.parts[i].cannon.y) * Math.cos(facing));
+                    facing += normalDistribution(0, entity.parts[i].cannon.spread);
                     let res = toComponent(bullet.v, facing);
                     bullet.vx = res.x + entity.vx;
                     bullet.vy = res.y + entity.vy;
@@ -997,13 +997,14 @@ function main() {
     drawPolygon(points2, {x: 0, y: 0}, Math.PI/4, 'rgba(255, 0, 0, 0.75)', {colour: '#696969', width: 10}, false);
     drawPolygon(points2, {x: 0, y: 0}, false, 'rgba(0, 255, 0, 0.5)', {colour: '#696969', width: 10}, false);
     
-
+    
     player = handlePlayerMotion(player);
     player = handleShooting(player);
     renderParticles(projectiles);
     projectiles = simulatePhysics(projectiles);
     projectiles = handleDecay(projectiles);
     drawPlayer(player);
+    
 }
 
 var t=0;
