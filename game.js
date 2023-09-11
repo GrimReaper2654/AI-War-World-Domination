@@ -476,15 +476,15 @@ function normalDistribution(mean, sDiv) {
 };
 
 function pointInPolygon(point, polygon) { // Chat GPT pog
-    const x = point[0];
-    const y = point[1];
+    const x = point.x;
+    const y = point.y;
     let inside = false;
 
     for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i][0];
-        const yi = polygon[i][1];
-        const xj = polygon[j][0];
-        const yj = polygon[j][1];
+        const xi = polygon[i].x;
+        const yi = polygon[i].y;
+        const xj = polygon[j].x;
+        const yj = polygon[j].y;
 
         const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
 
@@ -511,6 +511,7 @@ const data = {
         tr: 360 / 60 / 180 * Math.PI, // rotation of turret (main body)
         keyboard: [],
         collisionR: 150,
+        friendly: true,
         parts: [
             {
                 id: 'foot1',
@@ -553,6 +554,18 @@ const data = {
                     fill: 'rgba(130, 130, 130, 1)',
                     stroke: {colour: '#696969', width: 5},
                 }
+            },
+            {
+                id: 'lowerBody',
+                facing: 'body',
+                type: 'circle', 
+                rOffset: 0,
+                size: 35,
+                offset: {x: 0, y: 0},
+                style: {
+                    fill: 'rgba(140, 140, 140, 1)',
+                    stroke: {colour: '#696969', width: 5},
+                },
             },
             {
                 id: 'mainBody',
@@ -637,7 +650,7 @@ const data = {
                     keybind: 'click',
                     x: 0,
                     y: 0,
-                    reload: {c: 0, t: 3},
+                    reload: {c: 0, t: 6},
                     spread: Math.PI/48,
                     bullet: {
                         type: 'circle', 
@@ -679,7 +692,7 @@ const data = {
                     keybind: 'click',
                     x: 0,
                     y: 0,
-                    reload: {c: 0, t: 3},
+                    reload: {c: 0, t: 6},
                     spread: Math.PI/48,
                     bullet: {
                         type: 'circle', 
@@ -744,6 +757,149 @@ const data = {
                 strokeStyle: {r: 0, g: 0, b: 0, a: 0}, // add to stroke style
                 size: 1 // multiply size by this
             }
+        },
+        parts: {
+            mechFoot: {
+                id: 'defaultFoot',
+                type: 'polygon', 
+                facing: 'body',
+                rOffset: 0,
+                size: [
+                    {x: -10, y: 60},
+                    {x: 10, y: 60},
+                    {x: 15, y: 50},
+                    {x: 15, y: -50},
+                    {x: 10, y: -60},
+                    {x: -10, y: -60},
+                    {x: -15, y: -50},
+                    {x: -15, y: 50},
+                ],
+                offset: {x: 0, y: -5},
+                style: {
+                    fill: 'rgba(130, 130, 130, 1)',
+                    stroke: {colour: '#696969', width: 5},
+                },
+                collision: false,
+                hp: Infinity,
+            },
+            MechLowerBody: {
+                id: 'lowerBody',
+                facing: 'body',
+                type: 'circle', 
+                rOffset: 0,
+                size: 35,
+                offset: {x: 0, y: 0},
+                style: {
+                    fill: 'rgba(140, 140, 140, 1)',
+                    stroke: {colour: '#696969', width: 5},
+                },
+                collision: false,
+                hp: Infinity,
+            },
+            defailtMechMainBody: {
+                id: 'mainBody',
+                facing: 'turret',
+                type: 'polygon', 
+                rOffset: 0,
+                size: [
+                    {x: -60, y: 40},
+                    {x: 60, y: 40},
+                    {x: 70, y: 30},
+                    {x: 70, y: -30},
+                    {x: 60, y: -40},
+                    {x: -60, y: -40},
+                    {x: -70, y: -30},
+                    {x: -70, y: 30},
+                ],
+                offset: {x: 0, y: 0},
+                style: {
+                    fill: 'rgba(210, 210, 210, 1)',
+                    stroke: {colour: '#696969', width: 10},
+                },
+                collision: true,
+                hp: 5000,
+            },
+            defaultMechArm: {
+                id: 'defaultArm',
+                facing: 'turret',
+                type: 'polygon', 
+                rOffset: 0,
+                size: [
+                    {x: -20, y: 50},
+                    {x: 20, y: 50},
+                    {x: 25, y: 40},
+                    {x: 25, y: -60},
+                    {x: 20, y: -70},
+                    {x: -20, y: -70},
+                    {x: -25, y: -60},
+                    {x: -25, y: 40},
+                ],
+                offset: {x: 0, y: 0},
+                style: {
+                    fill: 'rgba(200, 200, 200, 1)',
+                    stroke: {colour: '#696969', width: 10},
+                },
+                collision: true,
+                hp: 3000,
+            },
+            mechMachineGun: {
+                id: 'defaultMachineGun',
+                facing: 'turret',
+                type: 'polygon', 
+                rOffset: 0,
+                size: [
+                    {x: -10, y: 0},
+                    {x: 10, y: 0},
+                    {x: 10, y: 30},
+                    {x: -10, y: 30},
+                ],
+                offset: {x: 0, y: -100},
+                style: {
+                    fill: 'rgba(150, 150, 150, 1)',
+                    stroke: {colour: '#696969', width: 5},
+                },
+                cannon: {
+                    keybind: 'click',
+                    x: 0,
+                    y: 0,
+                    reload: {c: 0, t: 6},
+                    spread: Math.PI/48,
+                    bullet: {
+                        type: 'circle', 
+                        size: 8,
+                        style: {
+                            fill: {r: 100, g: 100, b: 100, a: 1},
+                            stroke: {colour: {r: 69, g: 69, b: 69, a: 1}, width: 3},
+                        },
+                        decay: {
+                            life: 120, 
+                            fillStyle: {r: 0, g: 0, b: 0, a: 0}, 
+                            strokeStyle: {r: 0, g: 0, b: 0, a: 0}, 
+                            size: 1
+                        },
+                        dmg: 100,
+                        v: 20,
+                        vDrag: 0.99,
+                        friendly: true,
+                    },
+                },
+                collision: true,
+                hp: 300,
+            },
+            defaultHead: {
+                id: 'defaultHead',
+                facing: 'turret',
+                type: 'circle', 
+                rOffset: 0,
+                size: 25,
+                offset: {x: 0, y: 0},
+                style: {
+                    fill: 'rgba(69, 69, 69, 1)',
+                    stroke: {colour: '#696969', width: 5},
+                },
+                collision: false,
+                hp: Infinity,
+            },
         },
     }
 };
@@ -860,8 +1016,15 @@ function handlePlayerMotion(player) {
     return player;
 };
 
-function detectCollision(obj1, obj2) {
-
+function detectCollision(polygon1, polygon2) {
+    let collided = false;
+    for (let i = 0; i < polygon1.length; i++) {
+        if (pointInPolygon(polygon1[i], polygon2)) {
+            collided = true;
+            break;
+        }
+    }
+    return collided;
 };
 
 function simulatePhysics(objects) {
@@ -996,7 +1159,6 @@ function main() {
     ];
     drawPolygon(points2, {x: 0, y: 0}, Math.PI/4, 'rgba(255, 0, 0, 0.75)', {colour: '#696969', width: 10}, false);
     drawPolygon(points2, {x: 0, y: 0}, false, 'rgba(0, 255, 0, 0.5)', {colour: '#696969', width: 10}, false);
-    
     
     player = handlePlayerMotion(player);
     player = handleShooting(player);
