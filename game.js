@@ -502,7 +502,7 @@ function pointInPolygon(point, polygon) { // Chat GPT pog
 
 // The return of the excessively overcomplicated data storage system
 const data = {
-    player: {
+   mech: {
         x: 0,
         y: 0,
         r: 0, // direction of motion
@@ -515,7 +515,7 @@ const data = {
         tr: 360 / 60 / 180 * Math.PI, // rotation of turret (main body)
         keyboard: [],
         collisionR: 150,
-        friendly: true,
+        directControl: true,
         parts: [
             {
                 id: 'LowerBodyContainer',
@@ -595,6 +595,7 @@ const data = {
                         connected: [],
                     },
                 ],
+                groundCollision: true,
             },
             {
                 id: 'mainBody',
@@ -680,7 +681,6 @@ const data = {
                                         dmg: 100,
                                         v: 20,
                                         vDrag: 0.99,
-                                        friendly: true,
                                     },
                                 },
                                 collision: false,
@@ -750,7 +750,6 @@ const data = {
                                         dmg: 100,
                                         v: 20,
                                         vDrag: 0.99,
-                                        friendly: true,
                                     },
                                 },
                                 collision: false,
@@ -976,6 +975,7 @@ if (savedPlayer !== null) {
     console.log('no save found, creating new player');
     player = data.player;
 };
+entities.push(player);
 
 // Steal Data (get inputs)
 var mousepos = {x:0,y:0};
@@ -1208,6 +1208,7 @@ function handleDecay(objs) {
 };
 
 
+
 function main() {
     clearCanvas();
     grid(200);
@@ -1231,13 +1232,14 @@ function main() {
     drawPolygon(points2, {x: 0, y: 0}, Math.PI/4, 'rgba(255, 0, 0, 0.75)', {colour: '#696969', width: 10}, false);
     drawPolygon(points2, {x: 0, y: 0}, false, 'rgba(0, 255, 0, 0.5)', {colour: '#696969', width: 10}, false);
     
-    player = handlePlayerMotion(player);
-    player = handleShooting(player);
-    renderParticles(projectiles);
+    for (let i = 0; i < entities.length; i++) {
+        entities[i] = handlePlayerMotion(entities[i]);
+        entities[i] = handleShooting(entities[i]);
+        renderUnit(entities[i]);
+    }
     projectiles = simulatePhysics(projectiles);
     projectiles = handleDecay(projectiles);
-    renderUnit(player);
-    
+    renderParticles(projectiles);
 }
 
 var t=0;
