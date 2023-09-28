@@ -333,26 +333,6 @@ function drawLight(x, y, radius) {
     ctx.fill();
 };
 
-function detectCollision(obj1, obj2) { // Should detect collisions even when stuff goes really fast TODO: might need reworking
-    for (var i = 0; i < obj1.hitbox.length; i += 1) {
-        for (var j = 0; j < obj2.hitbox.length; j += 1) {
-            var steps = Math.abs(obj1.v) / obj1.hitbox[0].r;
-            if (steps <= 1) {
-                steps = 1;
-            }
-            for (var step = 0; step < steps; step += 1) {
-                if (getDist({x: obj1.hitbox[i].px+obj1.vx*(step/steps), y: obj1.hitbox[i].py+obj1.vy*(step/steps)},{x: obj2.hitbox[j].x, y: obj2.hitbox[j].y}) < obj1.hitbox[i].r + obj2.hitbox[j].r) {
-                    return [true,{x: obj1.hitbox[i].px+obj1.vx*(step/steps), y: obj1.hitbox[i].py+obj1.vy*(step/steps)}];
-                }
-            }
-            if (getDist({x: obj1.hitbox[i].x, y: obj1.hitbox[i].y},{x: obj2.hitbox[j].x, y: obj2.hitbox[j].y}) < obj1.hitbox[i].r + obj2.hitbox[j].r) {
-                return [true,{x: obj1.hitbox[i].x, y: obj1.hitbox[i].y}];
-            }
-        }
-    }
-    return false;
-};
-
 function calculateDamage(bullet, ship) { // TODO: Might need reworking
     if (bullet.dmg > 0 && bullet.team != ship.team) {
         if (bullet.dmg > ship.shield.shieldCap) {
@@ -479,25 +459,56 @@ function normalDistribution(mean, sDiv) {
     return mean + z * sDiv;
 };
 
-function pointInPolygon(point, polygon) { // Chat GPT pog
-    const x = point.x;
-    const y = point.y;
+function raySegmentIntersection(ray, segment) {
+    console.log(ray, segment);
+    if (segment.start.x > segment.end.x) {
+        console.log('invert');
+        let s = JSON.parse(JSON.stringify(segment.start));
+        let e = JSON.parse(JSON.stringify(segment.end));
+        segment.start = e;
+        segment.end = s;
+    }
+    console.log(segment);
+    if (ray.x < segment.start.x || ray.x > segment.end.x || ray.y > segment.end.y) {
+        console.log('no');
+        return false;
+    }
+    let diff = {x: segment.start.x - segment.end.x, y: segment.start.y - segment.end.y};
+    if (((ray.x - segment.start.x) / diff.x ) * diff.y + segment.start.y > ray.y) {
+        console.log('yes');
+        return true;
+    }
+    console.log('no');
+    return false;
+};
+
+function pointInPolygon(point, polygon) {
     let inside = false;
-
-    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-        const xi = polygon[i].x;
-        const yi = polygon[i].y;
-        const xj = polygon[j].x;
-        const yj = polygon[j].y;
-
-        const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
-
-        if (intersect) {
+    if (raySegmentIntersection(point, {start: polygon[0], end: polygon[polygon.length-1]})) {
+        inside = !inside;
+    }
+    for (let i = 1; i < polygon.length-1; i++) {
+        if (raySegmentIntersection(point, {start: polygon[i], end: polygon[i+1]})) {
             inside = !inside;
         }
     }
-
+    //console.log(inside);
     return inside;
+};
+
+function vMath(v1, v2, mode) {
+    switch (mode) {
+        case 'add':
+            return {x: v1.x+v2.x, y: v1.y+v2.y};
+        case 'subtract':
+            return {x: v1.x-v2.x, y: v1.y-v2.y};
+        case 'multiply': // v2 is now a scalar
+            return {x: v1.x*v2, y: v1.y*v2};
+        case 'divide': // v2 is now a scalar
+            return {x: v1.x/v2, y: v1.y/v2};
+        default:
+            throw 'are you f*cking retarded?';
+    }
 };
 
 // The return of the excessively overcomplicated data storage system
@@ -514,8 +525,9 @@ const data = {
         vr: 180 / 60 / 180 * Math.PI, // rotation of tracks (feet)
         tr: 360 / 60 / 180 * Math.PI, // rotation of turret (main body)
         keyboard: [],
+        aimPos: {x: 69, y: 69},
         collisionR: 150,
-        directControl: true,
+        directControl: false,
         parts: [
             {
                 id: 'LowerBodyContainer',
@@ -530,6 +542,7 @@ const data = {
                 },
                 collision: true,
                 hp: 500,
+                isHit: 0,
                 connected: [
                     {
                         id: 'foot1',
@@ -553,6 +566,7 @@ const data = {
                         },
                         collision: false,
                         hp: Infinity,
+                        isHit: 0,
                         connected: [],
                     },
                     {
@@ -577,6 +591,7 @@ const data = {
                         },
                         collision: false,
                         hp: Infinity,
+                        isHit: 0,
                         connected: [],
                     },
                     {
@@ -592,6 +607,7 @@ const data = {
                         },
                         collision: false,
                         hp: Infinity,
+                        isHit: 0,
                         connected: [],
                     },
                 ],
@@ -619,6 +635,8 @@ const data = {
                 },
                 collision: true,
                 hp: 5000,
+                collideDmg: 500,
+                isHit: 0,
                 connected: [
                     {
                         id: 'armLeft',
@@ -642,6 +660,8 @@ const data = {
                         },
                         collision: true,
                         hp: 3000,
+                        collideDmg: 500,
+                        isHit: 0,
                         connected: [
                             {
                                 id: 'gunLeft',
@@ -663,8 +683,8 @@ const data = {
                                     keybind: 'click',
                                     x: 0,
                                     y: 0,
-                                    reload: {c: 0, t: 6},
-                                    spread: Math.PI/48,
+                                    reload: {c: 0, t: 15},
+                                    spread: Math.PI/48/10,
                                     bullet: {
                                         type: 'circle', 
                                         size: 8,
@@ -678,13 +698,14 @@ const data = {
                                             strokeStyle: {r: 0, g: 0, b: 0, a: 0}, 
                                             size: 1
                                         },
-                                        dmg: 100,
+                                        dmg: 250,
                                         v: 20,
                                         vDrag: 0.99,
                                     },
                                 },
                                 collision: false,
                                 hp: Infinity,
+                                isHit: 0,
                                 connected: [],
                             },
                         ],
@@ -711,6 +732,8 @@ const data = {
                         },
                         collision: true,
                         hp: 3000,
+                        collideDmg: 500,
+                        isHit: 0,
                         connected: [
                             {
                                 id: 'gunRight',
@@ -732,7 +755,7 @@ const data = {
                                     keybind: 'click',
                                     x: 0,
                                     y: 0,
-                                    reload: {c: 0, t: 6},
+                                    reload: {c: 0, t: 15},
                                     spread: Math.PI/48,
                                     bullet: {
                                         type: 'circle', 
@@ -747,13 +770,14 @@ const data = {
                                             strokeStyle: {r: 0, g: 0, b: 0, a: 0}, 
                                             size: 1
                                         },
-                                        dmg: 100,
+                                        dmg: 250,
                                         v: 20,
                                         vDrag: 0.99,
                                     },
                                 },
                                 collision: false,
                                 hp: Infinity,
+                                isHit: 0,
                                 connected: [],
                             },
                         ],
@@ -771,6 +795,7 @@ const data = {
                         },
                         collision: false,
                         hp: Infinity,
+                        isHit: 0,
                         connected: [],
                     },
                 ],
@@ -973,25 +998,55 @@ if (savedPlayer !== null) {
 } else {
     // No saved data found
     console.log('no save found, creating new player');
-    player = data.player;
+    player = JSON.parse(JSON.stringify(data.mech));
+    player.x += 500;
+    entities.push(JSON.parse(JSON.stringify(player)));
+    player.x += 500;
+    entities.push(JSON.parse(JSON.stringify(player)));
+    player.x += 500;
+    entities.push(JSON.parse(JSON.stringify(player)));
+    player.x += 500;
+    entities.push(JSON.parse(JSON.stringify(player)));
+    player.x = 0;
+    player.directControl = true;
+    entities.push(player);
 };
-entities.push(player);
 
 // Steal Data (get inputs)
 var mousepos = {x:0,y:0};
 var display = {x:window.innerWidth, y:window.innerHeight};
-
-window.onkeyup = function(e) { player.keyboard[e.key.toLowerCase()] = false; }
-window.onkeydown = function(e) { player.keyboard[e.key.toLowerCase()] = true; }
+console.log(entities);
+window.onkeyup = function(e) {
+    for (var i = 0; i < entities.length; i++) {
+        if (entities[i].directControl) {
+            entities[i].keyboard[e.key.toLowerCase()] = false; 
+        }
+    }
+};
+window.onkeydown = function(e) {
+    for (var i = 0; i < entities.length; i++) {
+        if (entities[i].directControl) {
+            entities[i].keyboard[e.key.toLowerCase()] = true; 
+        }
+    }
+};
 document.addEventListener('mousedown', function(event) {
-  if (event.button === 0) { // Check if left mouse button was clicked
-    player.keyboard.click = true;
-  }
+    if (event.button === 0) { // Check if left mouse button was clicked
+        for (var i = 0; i < entities.length; i++) {
+            if (entities[i].directControl) {
+                entities[i].keyboard.click = true;
+            }
+        }
+    }
 });
 document.addEventListener('mouseup', function(event) {
-  if (event.button === 0) { // Check if left mouse button was released
-    player.keyboard.click = false;
-  }
+    if (event.button === 0) { // Check if left mouse button was released
+        for (var i = 0; i < entities.length; i++) {
+            if (entities[i].directControl) {
+                entities[i].keyboard.click = false;
+            }
+        }
+    }
 });
 window.addEventListener("resize", function () {
     if (t > 0) {
@@ -1012,67 +1067,70 @@ function load() {
     game();
 };
 
-function handlePlayerMotion(player) {
-    player.mouseR = rotateAngle(player.mouseR, aim({x: display.x/2, y: display.y/2}, mousepos), player.tr);
-    player.lastMoved += 1;
-    player.vx = 0;
-    player.vy = 0;
-    let speed = player.v;
-    player.r = correctAngle(player.r);
-    if (player.keyboard.capslock) {
+function handlePlayerMotion(unit) {
+    if (unit.directControl) {
+        unit.aimPos = mousepos;
+    }
+    unit.mouseR = rotateAngle(unit.mouseR, aim(vMath(vMath(vMath(display,0.5,'multiply'),player,'subtract'),unit,'add'), vMath(vMath(unit.aimPos,player,'subtract'),unit,'add')), unit.tr);
+    unit.lastMoved += 1;
+    unit.vx = 0;
+    unit.vy = 0;
+    let speed = unit.v;
+    unit.r = correctAngle(unit.r);
+    if (unit.keyboard.capslock) {
         speed *= 4;
     }
-    if (player.keyboard.shift) { 
+    if (unit.keyboard.shift) {
         speed *= 2.5;
     }
     let isMoving = false;
     let vector = {x: 0, y: 0}; // special maths
-    if (player.keyboard.w || player.keyboard.arrowup) { 
+    if (unit.keyboard.w || unit.keyboard.arrowup) { 
         vector.y -= 1
         isMoving = true;
     }
-    if (player.keyboard.s || player.keyboard.arrowdown) {
+    if (unit.keyboard.s || unit.keyboard.arrowdown) {
         vector.y += 1
         isMoving = true;
     }
-    if (player.keyboard.a || player.keyboard.arrowleft) { 
+    if (unit.keyboard.a || unit.keyboard.arrowleft) { 
         vector.x -= 1
         isMoving = true;
     }
-    if (player.keyboard.d || player.keyboard.arrowright) { 
+    if (unit.keyboard.d || unit.keyboard.arrowright) { 
         vector.x += 1
         isMoving = true;
     }
     if (isMoving) {
-        if (player.lastMoved >= 20) {
-            player.r = aim({x:0, y: 0}, vector);
+        if (unit.lastMoved >= 20) {
+            unit.r = aim({x:0, y: 0}, vector);
         } else {
-            player.r = rotateAngle(player.r, aim({x:0, y: 0}, vector), player.vr);
+            unit.r = rotateAngle(unit.r, aim({x:0, y: 0}, vector), unit.vr);
         }
-        let velocity = toComponent(speed, player.r);
-        player.x += velocity.x;
-        player.y += velocity.y;
-        player.vx = velocity.x;
-        player.vy = velocity.y;
-        player.lastMoved = -1;
+        let velocity = toComponent(speed, unit.r);
+        unit.x += velocity.x;
+        unit.y += velocity.y;
+        unit.vx = velocity.x;
+        unit.vy = velocity.y;
+        unit.lastMoved = -1;
     }
-    //console.log(player.keyboard);
+    //console.log(unit.keyboard);
     /*
-    for (var i = 0; i < player.weapons.length; i+=1) {
-        if (player.weapons[i].keybind == CLICK) {
-            if (player.hasClicked) {
-                player = attemptShoot(i, player);
+    for (var i = 0; i < unit.weapons.length; i+=1) {
+        if (unit.weapons[i].keybind == CLICK) {
+            if (unit.hasClicked) {
+                unit = attemptShoot(i, unit);
             }
         } else {
-            if (player.keyboard[player.weapons[i].keybind]) {
-                player = attemptShoot(i, player);
+            if (unit.keyboard[unit.weapons[i].keybind]) {
+                unit = attemptShoot(i, unit);
             }
         }
     }*/
-    return player;
+    return unit;
 };
 
-function detectCollision(polygon1, polygon2) {
+function polygonCollision(polygon1, polygon2) {
     let collided = false;
     for (let i = 0; i < polygon1.length; i++) {
         if (pointInPolygon(polygon1[i], polygon2)) {
@@ -1084,7 +1142,7 @@ function detectCollision(polygon1, polygon2) {
 };
 
 function simulatePhysics(objects) {
-    let newObjs = []
+    let newObjs = [];
     for (let i = 0; i < objects.length; i++) {
         let newObj = JSON.parse(JSON.stringify(objects[i]));
         newObj.vx += newObj.ax;
@@ -1139,14 +1197,14 @@ function renderPart(unit, part) {
         facing += part.rOffset;
         drawPolygon(np, {x: unit.x, y: unit.y}, facing, part.style.fill, part.style.stroke, false);
     } else {
-        drawCircle(display.x/2 + part.offset.x, display.y/2 + part.offset.y, part.size, part.style.fill, part.style.stroke.colour, part.style.stroke.width, 1);
+        drawCircle(display.x/2 - player.x + unit.x + part.offset.x, display.y/2 - player.y + unit.y + part.offset.y, part.size, part.style.fill, part.style.stroke.colour, part.style.stroke.width, 1);
     }
     return part;
 };
 
 function renderUnit(unit) {
     unit.parts = recursiveParts(unit, unit.parts, renderPart);
-    drawCircle(display.x/2, display.y/2, unit.collisionR, 'rgba(255, 255, 255, 0.1)', 'rgba(255, 0, 0, 0.9)', 5, 1);
+    drawCircle(display.x/2 - player.x + unit.x, display.y/2 - player.y + unit.y, unit.collisionR, 'rgba(255, 255, 255, 0.1)', 'rgba(255, 0, 0, 0.9)', 5, 1);
 };
 
 function shoot(unit, part) {
@@ -1183,6 +1241,7 @@ function handleDecay(objs) {
     let newObjs = []
     for (let i = 0; i < objs.length; i++) {
         let obj = objs[i];
+        //console.log(obj);
         obj.decay.life -= 1;
         if(obj.decay.life > 0) {
             if (obj.type == 'polygon') {
@@ -1207,12 +1266,62 @@ function handleDecay(objs) {
     return newObjs;
 };
 
+function recursiveColision(unit, pts, proj) {
+    let parts = JSON.parse(JSON.stringify(pts));
+    let projectile = JSON.parse(JSON.stringify(proj));
+    for (let i = 0; i < parts.length; i++) {
+        if (parts[i].collision) {
+            let collide = false;
+            if (parts[i].type == 'polygon') {
+                let points = offsetPoints(offsetPoints(JSON.parse(JSON.stringify(parts[i].size)), parts[i].offset), unit);
+                //console.log(points);
+                if (pointInPolygon(projectile, points)) {
+                    collide = true;
+                }
+            } else {
+                //console.log(getDist(offsetPoints(JSON.parse(JSON.stringify([parts[i].offset])), unit)[0], projectile));
+                if (getDist(offsetPoints(JSON.parse(JSON.stringify([parts[i].offset])), unit)[0], projectile) <= parts[i].size) {
+                    collide = true;
+                }
+            }
+            if (collide) {
+                parts[i].hp -= projectile.dmg;
+                parts[i].isHit=5;
+                projectile.dmg = 0; // have to do this to stop it hitting multiple parts (this is inefficient but hard to fix. maybe rework this to not use recursion? bfs?)
+                return [parts, projectile];
+            }
+        }
+        let res = recursiveColision(unit, parts[i].connected, projectile);
+        parts[i].connected = res[0];
+        projectile = res[1];
+    }
+    return [parts, projectile];
+};
 
+function handleColisions(units, projectiles) {
+    let newProj = [];
+    if (projectiles.length && units.length) {
+        for (let i = 0; i < projectiles.length; i++) {
+            for (let j = 0; j < units.length; j++) {
+                if (getDist(projectiles[i], units[j]) <= units[j].collisionR) {
+                    let res = recursiveColision(units[j], units[j].parts, projectiles[i]);
+                    units[j].parts = res[0];
+                    projectiles[i] = res[1];
+                }
+            }
+            if (projectiles[i].dmg != 0) {
+                newProj.push(projectiles[i]);
+            }
+        }
+        return [units, newProj];
+    }
+    return [units, projectiles];
+};
 
 function main() {
-    clearCanvas();
+    clearCanvas('main');
+    clearCanvas('canvasOverlay');
     grid(200);
-    
     const points = [
         {x: 100, y: 100},
         {x: 200, y: 50},
@@ -1232,12 +1341,17 @@ function main() {
     drawPolygon(points2, {x: 0, y: 0}, Math.PI/4, 'rgba(255, 0, 0, 0.75)', {colour: '#696969', width: 10}, false);
     drawPolygon(points2, {x: 0, y: 0}, false, 'rgba(0, 255, 0, 0.5)', {colour: '#696969', width: 10}, false);
     
+    let res = handleColisions(entities, projectiles);
+    entities = res[0];
+    projectiles = res[1];
+
     for (let i = 0; i < entities.length; i++) {
         entities[i] = handlePlayerMotion(entities[i]);
         entities[i] = handleShooting(entities[i]);
         renderUnit(entities[i]);
     }
     projectiles = simulatePhysics(projectiles);
+    //console.log(projectiles);
     projectiles = handleDecay(projectiles);
     renderParticles(projectiles);
 }
